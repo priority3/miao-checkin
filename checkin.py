@@ -123,11 +123,11 @@ async def do_checkin(client: TelegramClient, target_bot: str, checkin_command: s
 
     if pushplus_token:
         reply_text = await _wait_for_reply(client, target_bot)
-        title = f"喵签到 - {now}"
         if reply_text:
-            content = f"Bot 回复：\n{reply_text}"
+            title = reply_text
         else:
-            content = f"已发送 '{checkin_command}' 到 @{target_bot}，未收到回复"
+            title = "签到已发送，未收到回复"
+        content = f"{now} @{target_bot}"
         _send_pushplus(pushplus_token, title, content)
 
 
