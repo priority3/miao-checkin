@@ -53,6 +53,9 @@ Secrets（必填）：
 - `TG_API_HASH`
 - `TG_STRING_SESSION`
 
+Secrets（可选）：
+- `PUSHPLUS_TOKEN` — PushPlus 推送 token，填写后签到结果会推送到微信（[获取 token](http://www.pushplus.plus/)）
+
 Variables（可选，不填走默认值）：
 - `TG_TARGET_BOT`（默认 `that_miao_bot`）
 - `TG_CHECKIN_COMMAND`（默认 `/checkin`）

@@ -2,9 +2,12 @@
 import argparse
 import asyncio
 import getpass
+import json
 import os
 import re
 import sys
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Optional
@@ -14,6 +17,8 @@ from dotenv import load_dotenv
 from telethon import TelegramClient
 from telethon.errors import SessionPasswordNeededError
 from telethon.sessions import StringSession
+
+PUSHPLUS_API = "http://www.pushplus.plus/send"
 
 
 @dataclass
@@ -25,6 +30,7 @@ class Config:
     string_session: Optional[str]
     target_bot: str
     checkin_command: str
+    pushplus_token: Optional[str]
 
 
 def _require_env(name: str) -> str:
@@ -50,6 +56,7 @@ def load_config() -> Config:
     string_session = os.getenv("TG_STRING_SESSION", "").strip() or None
     target_bot = os.getenv("TG_TARGET_BOT", "that_miao_bot").strip() or "that_miao_bot"
     checkin_command = os.getenv("TG_CHECKIN_COMMAND", "/checkin").strip() or "/checkin"
+    pushplus_token = os.getenv("PUSHPLUS_TOKEN", "").strip() or None
     if not phone and not string_session:
         raise ValueError("Set TG_STRING_SESSION (recommended for CI) or TG_PHONE.")
     return Config(
@@ -60,6 +67,7 @@ def load_config() -> Config:
         string_session=string_session,
         target_bot=target_bot,
         checkin_command=checkin_command,
+        pushplus_token=pushplus_token,
     )
 
 
@@ -104,13 +112,60 @@ async def ensure_login(client: TelegramClient, phone: Optional[str]) -> None:
     print("Login successful. Session saved.")
 
 
-async def do_checkin(client: TelegramClient, target_bot: str, checkin_command: str, dry_run: bool) -> None:
+async def do_checkin(client: TelegramClient, target_bot: str, checkin_command: str, dry_run: bool,
+                     pushplus_token: Optional[str] = None) -> None:
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if dry_run:
         print(f"[DRY RUN] Would send '{checkin_command}' to @{target_bot}")
         return
     await client.send_message(target_bot, checkin_command)
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{now}] Sent '{checkin_command}' to @{target_bot}")
+
+    if pushplus_token:
+        reply_text = await _wait_for_reply(client, target_bot)
+        title = f"喵签到 - {now}"
+        if reply_text:
+            content = f"Bot 回复：\n{reply_text}"
+        else:
+            content = f"已发送 '{checkin_command}' 到 @{target_bot}，未收到回复"
+        _send_pushplus(pushplus_token, title, content)
+
+
+async def _wait_for_reply(client: TelegramClient, target_bot: str, timeout: int = 10) -> Optional[str]:
+    """Send check-in command and wait briefly for the bot to reply."""
+    # Reason: Bots typically reply within a few seconds; wait then read the latest incoming message
+    await asyncio.sleep(timeout)
+    try:
+        messages = await client.get_messages(target_bot, limit=1)
+        if messages and not messages[0].out:
+            return messages[0].text
+    except Exception as exc:  # noqa: BLE001
+        print(f"Failed to read bot reply: {exc}")
+    return None
+
+
+def _send_pushplus(token: str, title: str, content: str) -> None:
+    """Send a notification via PushPlus (WeChat push)."""
+    payload = json.dumps({
+        "token": token,
+        "title": title,
+        "content": content,
+        "template": "txt",
+    }).encode()
+    req = urllib.request.Request(
+        PUSHPLUS_API,
+        data=payload,
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            result = json.loads(resp.read().decode())
+            if result.get("code") != 200:
+                print(f"PushPlus failed: {result.get('msg', 'unknown error')}")
+            else:
+                print("PushPlus notification sent.")
+    except (urllib.error.URLError, OSError) as exc:
+        print(f"PushPlus error: {exc}")
 
 
 def seconds_until_next_run(hour: int, minute: int, timezone: ZoneInfo) -> tuple[float, datetime]:
@@ -124,7 +179,8 @@ def seconds_until_next_run(hour: int, minute: int, timezone: ZoneInfo) -> tuple[
 async def run_once(config: Config, dry_run: bool, target_bot: str, checkin_command: str) -> None:
     async with build_client(config) as client:
         await ensure_login(client, config.phone)
-        await do_checkin(client, target_bot, checkin_command, dry_run=dry_run)
+        await do_checkin(client, target_bot, checkin_command, dry_run=dry_run,
+                         pushplus_token=config.pushplus_token)
 
 
 async def export_string_session(config: Config) -> None:
@@ -154,7 +210,8 @@ async def run_daily(
             print(f"Next run at {run_time.strftime('%Y-%m-%d %H:%M:%S %Z')}")
             await asyncio.sleep(wait_seconds)
             try:
-                await do_checkin(client, target_bot, checkin_command, dry_run=dry_run)
+                await do_checkin(client, target_bot, checkin_command, dry_run=dry_run,
+                                 pushplus_token=config.pushplus_token)
             except Exception as exc:  # noqa: BLE001
                 print(f"Check-in failed: {exc}")
 

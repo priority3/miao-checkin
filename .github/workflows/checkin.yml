@@ -19,6 +19,7 @@ jobs:
       TG_STRING_SESSION: ${{ secrets.TG_STRING_SESSION }}
       TG_TARGET_BOT: ${{ vars.TG_TARGET_BOT }}
       TG_CHECKIN_COMMAND: ${{ vars.TG_CHECKIN_COMMAND }}
+      PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
