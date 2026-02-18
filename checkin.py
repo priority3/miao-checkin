@@ -124,9 +124,9 @@ async def do_checkin(client: TelegramClient, target_bot: str, checkin_command: s
     if pushplus_token:
         reply_text = await _wait_for_reply(client, target_bot)
         if reply_text:
-            title = reply_text
+            title = f"[miao-checkin] {reply_text}"
         else:
-            title = "签到已发送，未收到回复"
+            title = "[miao-checkin] 签到已发送，未收到回复"
         content = f"{now} @{target_bot}"
         _send_pushplus(pushplus_token, title, content)
 
