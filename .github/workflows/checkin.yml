@@ -2,8 +2,10 @@ name: Miao Checkin
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "5 1 * * *"
+  # Paused: disable the scheduled daily run for now.
+  # To resume, uncomment the schedule block below.
+  # schedule:
+  #   - cron: "5 1 * * *"
 
 concurrency:
   group: miao-checkin
