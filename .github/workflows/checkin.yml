@@ -2,8 +2,8 @@ name: Miao Checkin
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "5 1 * * *"
+  # schedule:
+  #   - cron: "5 1 * * *"
 
 concurrency:
   group: miao-checkin
