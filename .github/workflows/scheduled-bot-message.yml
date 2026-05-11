@@ -1,0 +1,55 @@
+name: Scheduled Bot Message
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_bot:
+        description: "Target bot username"
+        required: false
+        default: "gopay1232bot"
+        type: string
+      message_text:
+        description: "Message text to send"
+        required: false
+        default: "/checkin"
+        type: string
+  schedule:
+    - cron: "5 1 * * *"
+
+concurrency:
+  group: scheduled-bot-message
+  cancel-in-progress: false
+
+jobs:
+  send-message:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TG_API_ID: ${{ secrets.TG_API_ID }}
+      TG_API_HASH: ${{ secrets.TG_API_HASH }}
+      TG_STRING_SESSION: ${{ secrets.TG_STRING_SESSION }}
+      TG_TARGET_BOT: ${{ github.event.inputs.target_bot || vars.TG_TARGET_BOT || 'gopay1232bot' }}
+      TG_MESSAGE_TEXT: ${{ github.event.inputs.message_text || vars.TG_MESSAGE_TEXT || '/checkin' }}
+      PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Validate required config
+        run: |
+          test -n "$TG_API_ID" || (echo "Missing secret TG_API_ID" && exit 1)
+          test -n "$TG_API_HASH" || (echo "Missing secret TG_API_HASH" && exit 1)
+          test -n "$TG_STRING_SESSION" || (echo "Missing secret TG_STRING_SESSION" && exit 1)
+          test -n "$TG_TARGET_BOT" || (echo "Missing variable/input TG_TARGET_BOT" && exit 1)
+          test -n "$TG_MESSAGE_TEXT" || (echo "Missing variable/input TG_MESSAGE_TEXT" && exit 1)
+
+      - name: Send scheduled message
+        run: python bot_message.py
