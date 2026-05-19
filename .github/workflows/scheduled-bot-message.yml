@@ -1,20 +1,20 @@
 name: Scheduled Bot Message
 
-on:
-  workflow_dispatch:
-    inputs:
-      target_bot:
-        description: "Target bot username"
-        required: false
-        default: "gopay1232bot"
-        type: string
-      message_text:
-        description: "Message text to send"
-        required: false
-        default: "/checkin"
-        type: string
-  schedule:
-    - cron: "5 1 * * *"
+# on:
+#   workflow_dispatch:
+#     inputs:
+#       target_bot:
+#         description: "Target bot username"
+#         required: false
+#         default: "gopay1232bot"
+#         type: string
+#       message_text:
+#         description: "Message text to send"
+#         required: false
+#         default: "/checkin"
+#         type: string
+#   schedule:
+#     - cron: "5 1 * * *"
 
 concurrency:
   group: scheduled-bot-message
